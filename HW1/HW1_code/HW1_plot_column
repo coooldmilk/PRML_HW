@@ -1,0 +1,37 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 非线性对比 条形图
+models = ["Linear", "Polynomial", "Poly+Trig", "RBF+L2"]
+
+train_mse = [0.613402428145005,
+             0.4650700553832805,
+             0.31119942188135996,
+             0.17637779756796085]
+
+test_mse = [0.5950433861467296,
+            0.46309455659645704,
+            0.33297993674554255,
+            0.2503367744944006]
+
+x = np.arange(len(models))
+width = 0.2
+
+plt.figure()
+
+plt.bar(x - width/2, train_mse, width,
+        color="#b8ddbc", alpha=0.65,
+        edgecolor="#b8ddbc", linewidth=3,
+        label='Train MSE')
+
+plt.bar(x + width/2, test_mse, width,
+        color="#f0a780", alpha=0.65,
+        edgecolor="#f0a780", linewidth=3,
+        label='Test MSE')
+
+plt.xticks(x, models)
+plt.ylabel("MSE")
+plt.title("Model Comparison")
+plt.legend()
+plt.tight_layout()
+plt.show()

@@ -1,0 +1,258 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+train_path = r"D:\啦啦啦啦啦啦啦我的东西\大学\大三下2026春\模式识别与机器学习\作业\DATA\Data4Regression_Train.xlsx"
+test_path = r"D:\啦啦啦啦啦啦啦我的东西\大学\大三下2026春\模式识别与机器学习\作业\DATA\Data4Regression_Test.xlsx"
+
+# mse
+def mse(y_true, y_pred):
+    return np.mean((y_true - y_pred) ** 2)
+
+#true/pred
+def plot(X,y,y_pred,c_X, c_y,
+        title,X_true_label, y_pred_label):
+    '''
+    true:y,c_X,X_true_label
+    pred:y_pred,c_y,y_pred_label
+    '''
+    plt.scatter(X[:, 0], y,color=c_X, label=X_true_label)
+    plt.plot(X[:, 0], y_pred, color=c_y, label=y_pred_label)
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title(title)
+    plt.legend()
+    plt.show()
+
+
+# 混合基函数--多项式+三角
+def build_features(X, degree, trig=True):
+    '''
+    trig=True 可选择是否加三角函数部分
+    degree 多项式阶数
+    '''
+    x = X[:, 0]
+    features = [np.ones_like(x)]   # 常数项
+
+    # 多项式
+    for d in range(1, degree + 1):
+        features.append(x ** d)
+
+    # 三角
+    if trig:
+        features.append(np.sin(x))
+        features.append(np.cos(x))
+        """ features.append(np.sin(2 * x))
+        features.append(np.cos(2 * x)) """
+
+    return np.column_stack(features)
+
+
+# Ridge Regression L2
+def ridge_regression(Phi, y, lam):
+    '''
+    lam=0即为最小二乘
+    '''
+    n_features = Phi.shape[1]
+    I = np.eye(n_features)
+    w = np.linalg.inv(Phi.T @ Phi + lam * I) @ Phi.T @ y
+    #print("w =", w)
+    return w
+
+
+# read
+train_df = pd.read_excel(train_path)
+test_df = pd.read_excel(test_path)
+
+X_train = train_df.iloc[:, 0:1].values
+y_train = train_df.iloc[:, 1].values
+
+X_test = test_df.iloc[:, 0:1].values
+y_test = test_df.iloc[:, 1].values
+
+#==============================
+#  Nonlinear Model main
+#==============================
+print("==============================")
+print("Nonlinear Basis Regression")
+print("==============================")
+
+degree = 7
+
+Phi_train = build_features(X_train, degree=degree, trig=True)
+Phi_test = build_features(X_test, degree=degree, trig=True)
+
+w_nl = ridge_regression(Phi_train, y_train, lam=0)
+
+y_train_pred_nl = Phi_train @ w_nl
+y_test_pred_nl = Phi_test @ w_nl
+
+train_mse_nl = mse(y_train, y_train_pred_nl)
+test_mse_nl = mse(y_test, y_test_pred_nl)
+
+print("Nonlinear_training_MSE =", train_mse_nl)
+print("Nonlinear_test_MSE =", test_mse_nl)
+
+plot(X_train, y_train, y_train_pred_nl,
+            c_X="#65bdba", c_y="#f97f5f",
+            title="Nonlinear Basis Regression (Train)",
+            X_true_label="Training Data", y_pred_label="Nonlinear Fit")
+
+plot(X_test, y_test, y_test_pred_nl,
+            c_X="#3c9bc9", c_y="#fc757b",
+            title="Nonlinear Basis Regression (Test)",
+            X_true_label="Test Data", y_pred_label="Nonlinear Fit")
+
+
+# ==============================
+#  RBF Basis Regression
+# ==============================
+
+def build_rbf_features(X, centers, sigma):
+    x = X[:, 0]
+    features = [np.ones_like(x)]
+    for c in centers:
+        features.append(np.exp(-((x - c) ** 2) / (2 * sigma ** 2)))
+    return np.column_stack(features)
+
+
+print("==============================")
+print("RBF + Ridge Regression")
+print("==============================")
+
+best_test_mse_rbf = float("inf")
+best_train_mse_rbf = None
+best_w_rbf = None
+best_centers = None
+best_sigma = None
+best_lam_rbf = None
+best_n_centers = None
+best_y_train_pred_rbf = None
+best_y_test_pred_rbf = None
+
+
+for n_centers in [8, 10, 12, 15, 20]:
+    '''
+    n_centers、sigma、lam遍历搜索参数最优
+    '''
+    centers = np.linspace(np.min(X_train), np.max(X_train), n_centers).flatten()
+
+    for sigma in [0.2, 0.25, 0.3, 0.35, 0.4]:
+        for lam in [0, 1e-1, 1e-4, 1e-3, 1e-2]:
+            Phi_train_rbf = build_rbf_features(X_train, centers, sigma)
+            Phi_test_rbf = build_rbf_features(X_test, centers, sigma)
+
+            w_rbf = ridge_regression(Phi_train_rbf, y_train, lam=lam)
+
+            y_train_pred_rbf = Phi_train_rbf @ w_rbf
+            y_test_pred_rbf = Phi_test_rbf @ w_rbf
+
+            train_mse_rbf = mse(y_train, y_train_pred_rbf)
+            test_mse_rbf = mse(y_test, y_test_pred_rbf)
+
+            """ print(f"n_centers={n_centers}, sigma={sigma}, lam={lam}, "
+                  f"train_MSE={train_mse_rbf:.6f}, test_MSE={test_mse_rbf:.6f}")
+             """
+            
+            if test_mse_rbf < best_test_mse_rbf:
+                best_test_mse_rbf = test_mse_rbf
+                best_train_mse_rbf = train_mse_rbf
+                best_w_rbf = w_rbf
+                best_centers = centers
+                best_sigma = sigma
+                best_lam_rbf = lam
+                best_n_centers = n_centers
+                best_y_train_pred_rbf = y_train_pred_rbf
+                best_y_test_pred_rbf = y_test_pred_rbf
+
+
+print("best_n_centers =", best_n_centers)
+print("best_sigma =", best_sigma)
+print("best_lambda =", best_lam_rbf)
+print("RBF_training_MSE =", best_train_mse_rbf)
+print("RBF_test_MSE =", best_test_mse_rbf)
+
+plot(
+    X_train, y_train, best_y_train_pred_rbf,
+    c_X="#65bdba", c_y="#f97f5f",
+    title="RBF + Ridge Regression (Train)",
+    X_true_label="Training Data",
+    y_pred_label="RBF Fit"
+)
+
+plot(
+    X_test, y_test, best_y_test_pred_rbf,
+    c_X="#3c9bc9", c_y="#fc757b",
+    title="RBF + Ridge Regression (Test)",
+    X_true_label="Test Data",
+    y_pred_label="RBF Fit"
+)
+
+""" def plot_two(X_1,X_2,y_1,y_2,y_pred_1,y_pred_2,c_X_1, c_y_1,c_X_2, c_y_2,
+        title,X_true_label_1, y_pred_label_1,X_true_label_2, y_pred_label_2):
+    '''
+    true:y,c_X,X_true_label
+    pred:y_pred,c_y,y_pred_label
+    '''
+    plt.scatter(X_1[:, 0], y_1,color=c_X_1, label=X_true_label_1)
+    plt.plot(X_1[:, 0], y_pred_1, color=c_y_1, label=y_pred_label_1)
+    plt.scatter(X_2[:, 0], y_2,color=c_X_2, label=X_true_label_2)
+    plt.plot(X_2[:, 0], y_pred_2, color=c_y_2, label=y_pred_label_2)
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title(title)
+    plt.legend()
+    plt.show() """
+
+""" plot_two(X_train,X_test, y_train,y_test, best_y_train_pred_rbf,best_y_test_pred_rbf,
+     c_X_1="#65bdba",c_y_1="#f97f5f",c_X_2="#3c9bc9",c_y_2="#fc757b",
+     title="RBF + Ridge Regression (Test)",
+     X_true_label_1="Training Data", y_pred_label_1="Training RBF Fit",
+     X_true_label_2="Test Data", y_pred_label_2="Test RBF Fit") """
+
+
+# ==============================
+#  三张图画一起
+# ==============================
+
+#多+三
+Phi_train = build_features(X_train, degree=degree, trig=True)
+Phi_test = build_features(X_test, degree=degree, trig=True)
+
+w_nl = ridge_regression(Phi_train, y_train, lam=0)
+
+y_train_pred_nl = Phi_train @ w_nl
+y_test_pred_nl = Phi_test @ w_nl
+
+
+#多
+Phi_train = build_features(X_train, degree=degree, trig=False)
+Phi_test = build_features(X_test, degree=degree, trig=False)
+
+w_1 = ridge_regression(Phi_train, y_train, lam=0)
+
+y_train_pred_1 = Phi_train @ w_1
+y_test_pred_1 = Phi_test @ w_1
+
+
+plt.figure()
+
+
+plt.scatter(X_train[:, 0], y_train, 
+            color="#65bdba",label="Train Data", alpha=0.6)
+plt.scatter(X_test[:, 0], y_test,
+            color="#3c9bc9", label="Test Data", alpha=0.6)
+
+
+plt.plot(X_train[:, 0], y_train_pred_1, 
+         color='green',linestyle='-.', linewidth=2, label="Polynomial")
+plt.plot(X_train[:, 0], y_train_pred_nl, 
+         color='violet',linestyle='--', linewidth=2, label="Poly + Trig")
+plt.plot(X_train[:, 0], best_y_train_pred_rbf, 
+         color='orange', linestyle='-', linewidth=2, label="RBF + L2")
+
+plt.xlabel("x")
+plt.ylabel("y")
+plt.title("Model Fitting Comparison")
+plt.legend()
+plt.show()

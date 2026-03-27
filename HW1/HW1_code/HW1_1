@@ -1,0 +1,257 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+train_path = r"D:\啦啦啦啦啦啦啦我的东西\大学\大三下2026春\模式识别与机器学习\作业\DATA\Data4Regression_Train.xlsx"
+test_path = r"D:\啦啦啦啦啦啦啦我的东西\大学\大三下2026春\模式识别与机器学习\作业\DATA\Data4Regression_Test.xlsx"
+
+# mse
+def mse(y_true, y_pred):
+    return np.mean((y_true - y_pred) ** 2)
+
+# 重构X矩阵，最前面加一列1
+def add_w0(X):
+    '''
+    X_add_w0 = 
+    ([[1, 1],   
+      [1, 2],   
+      [1, 3]])
+    '''
+    ones = np.ones((X.shape[0], 1))
+    X_new = np.hstack([ones, X])
+    return X_new
+
+
+#计算预测值
+def predict(X,w):
+    X_add_w0 = add_w0(X)
+    y_pred = X_add_w0 @ w
+    '''
+     X_add_w0 =    w=[b,k]^T 矩阵乘法->回到一维
+    ([[1, 1],   
+      [1, 2],   
+      [1, 3]])
+    '''
+    return y_pred
+
+#true/pred
+def plot(X,y,y_pred,c_X, c_y,
+        title,X_true_label, y_pred_label):
+    '''
+    true:y,c_X,X_true_label
+    pred:y_pred,c_y,y_pred_label
+    '''
+    plt.scatter(X[:, 0], y,color=c_X, label=X_true_label)
+    plt.plot(X[:, 0], y_pred, color=c_y, label=y_pred_label)
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title(title)
+    plt.legend()
+    plt.show()
+
+""" def plot_two(X_1,X_2,y_1,y_2,y_pred_1,y_pred_2,c_X_1, c_y_1,c_X_2, c_y_2,
+        title,X_true_label_1, y_pred_label_1,X_true_label_2, y_pred_label_2):
+    '''
+    测试集训练集合画一张图
+    '''
+    plt.scatter(X_1[:, 0], y_1,color=c_X_1, label=X_true_label_1)
+    plt.plot(X_1[:, 0], y_pred_1, color=c_y_1, label=y_pred_label_1)
+    plt.scatter(X_2[:, 0], y_2,color=c_X_2, label=X_true_label_2)
+    plt.plot(X_2[:, 0], y_pred_2, color=c_y_2, label=y_pred_label_2)
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title(title)
+    plt.legend()
+    plt.show() """
+
+#收敛曲线
+def plot_loss(loss_history,
+        title,x_label, y_label):
+    plt.plot(loss_history,color='#1f77b4', linewidth=2)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.grid(True, alpha=0.3)
+    plt.show()
+
+# read
+train_df = pd.read_excel(train_path)
+test_df = pd.read_excel(test_path)
+
+X_train = train_df.iloc[:, 0:1].values
+y_train = train_df.iloc[:, 1].values
+
+X_test = test_df.iloc[:, 0:1].values
+y_test = test_df.iloc[:, 1].values
+
+'''
+#查看原数据 训练集画图
+plt.scatter(X_train[:, 0], y_train,color="#65bdba")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.title("Training Data")
+plt.show()
+'''
+#==============================
+#  Least Squares main
+#==============================
+
+
+print("==============================")
+print ("Least Squares")
+print("==============================")
+
+#Least Squares
+def least_squares(X,y):
+    X_add_w0 = add_w0(X) #X_w是重构后的X
+    
+    w = np.linalg.inv(X_add_w0.T @ X_add_w0) @ X_add_w0.T @ y #最小二乘参数计算
+
+    #包含了偏置和系数 w=[b,k]
+    print("w_ls =", w)
+    return w
+
+w_ls = least_squares(X_train,y_train)
+
+y_train_pred_ls = predict(X_train, w_ls)
+y_test_pred_ls = predict(X_test, w_ls)
+
+train_mse = mse(y_train, y_train_pred_ls)
+test_mse = mse(y_test, y_test_pred_ls)
+
+print("Least Squares_training_MSE =", train_mse)
+print("Least Squares_test_MSE =", test_mse)
+
+plot(X_test, y_test, y_test_pred_ls,
+     c_X="#3c9bc9",c_y="#fc757b",
+     title="Least Squares Regression",
+     X_true_label="Test Data", y_pred_label="Least Squares Fit")
+plot(X_train, y_train, y_train_pred_ls,
+     c_X="#65bdba",c_y="#f97f5f",
+     title="Least Squares Regression",
+     X_true_label="Training Data", y_pred_label="Least Squares Fit")
+
+""" plot_two(X_train, X_test,y_train,y_test, y_train_pred_ls,y_test_pred_ls,
+     c_X_1="#65bdba",c_y_1="#f97f5f",c_X_2="#3c9bc9",c_y_2="#fc757b",
+     title="Least Squares Regression",
+     X_true_label_1="Training Data", y_pred_label_1="Least Squares Fit",
+     X_true_label_2="Test Data", y_pred_label_2="Least Squares Fit") """
+
+
+#==============================
+#  Gradient Descen main
+#==============================
+print("==============================")
+print ("Gradient Descen")
+print("==============================")
+
+# Gradient Descent
+def gradient_descent(X, y, lr):
+    X_add_w0 = add_w0(X)
+    n_samples, n_features = X_add_w0.shape
+    
+    # 初始化w
+    w = np.zeros(n_features)
+    
+    # 损失值数组
+    loss_history = []
+    
+    for epoch in range(epochs):
+        '''
+        损失函数mse
+        算梯度、参数更新、loss
+        '''
+        y_pred = X_add_w0 @ w
+        error = y_pred - y
+        grad = (2 / n_samples) * (X_add_w0.T @ error)
+        w = w - lr * grad
+        loss = mse(y, y_pred)
+        loss_history.append(loss)
+
+    print("w_gd =", w)
+    return w, loss_history
+
+learning_rate=0.001
+epochs=10000
+print("learning_rate =", learning_rate)
+print("epochs =", epochs)
+
+w_gd, loss_gd = gradient_descent(X_train, y_train, lr=learning_rate)
+
+y_train_pred_gd = predict(X_train, w_gd)
+y_test_pred_gd = predict(X_test, w_gd)
+
+train_mse_gd = mse(y_train, y_train_pred_gd)
+test_mse_gd = mse(y_test, y_test_pred_gd)
+
+print("GD_training_MSE =", train_mse_gd)
+print("GD_test_MSE =", test_mse_gd)
+
+plot(X_test, y_test, y_test_pred_gd,
+     c_X="#3c9bc9", c_y="#fc757b",
+     title="Gradient Descent Regression",
+     X_true_label="Test Data", y_pred_label="GD Fit")
+
+plot(X_train, y_train, y_train_pred_gd,
+     c_X="#65bdba", c_y="#f97f5f",
+     title="Gradient Descent Regression",
+     X_true_label="Training Data", y_pred_label="GD Fit")
+
+plot_loss(loss_gd,
+        title="Gradient Descent Loss Curve",
+        x_label="Epoch", y_label="Training Loss")
+
+#==============================
+#  Newton Method main
+#==============================
+print("==============================")
+print ("Newton Method")
+print("==============================")
+
+# Newton Method
+def newton_method(X, y):
+    X_add_w0 = add_w0(X)
+    n_samples, n_features = X_add_w0.shape
+    
+    w = np.zeros(n_features)
+    loss_history = []
+    
+    for epoch in range(epochs):
+        y_pred = X_add_w0 @ w
+        error = y_pred - y
+        grad = (2 / n_samples) * (X_add_w0.T @ error)
+        H = (2 / n_samples) * (X_add_w0.T @ X_add_w0)
+        w = w - np.linalg.inv(H) @ grad
+        loss = mse(y, y_pred)
+        loss_history.append(loss)
+
+    print("w_nm =", w)
+    return w, loss_history
+
+epochs=10
+print("epochs =", epochs)
+
+w_nm, loss_nm = newton_method(X_train, y_train)
+
+y_train_pred_nm = predict(X_train, w_nm)
+y_test_pred_nm = predict(X_test, w_nm)
+
+train_mse_nm = mse(y_train, y_train_pred_nm)
+test_mse_nm = mse(y_test, y_test_pred_nm)
+
+print("Newton_training_MSE =", train_mse_nm)
+print("Newton_test_MSE =", test_mse_nm)
+
+plot(X_test, y_test, y_test_pred_nm,
+     c_X="#3c9bc9", c_y="#fc757b",
+     title="Newton Method Regression",
+     X_true_label="Test Data", y_pred_label="Newton Fit")
+
+plot(X_train, y_train, y_train_pred_nm,
+     c_X="#65bdba", c_y="#f97f5f",
+     title="Newton Method Regression",
+     X_true_label="Training Data", y_pred_label="Newton Fit")
+
+plot_loss(loss_nm,
+        title="Newton Method Loss Curve",
+        x_label="Epoch", y_label="Training Loss")
