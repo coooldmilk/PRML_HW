@@ -1,6 +1,6 @@
 # PRML_HW
 
-PEML Homework 
+PRML Homework 23376061 
 ## 项目说明
 本仓库用于存放PRML课程作业。
 
