@@ -1,2 +1,12 @@
 # PRML_HW
-PEML_Homework
+
+PEML Homework 
+## 项目说明
+本仓库用于存放PRML课程作业。
+
+## 作业内容
+请在 **master 分支** 中查看全部作业内容。
+
+- `HW1`：第一次作业  
+  - 包含所有相关代码  
+  - 包含作业报告
